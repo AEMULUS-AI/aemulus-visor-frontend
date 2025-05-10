@@ -149,7 +149,7 @@ export default function ChatInterface() {
 
           {/* Chat Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* {messages.map((message) => (
+            {messages.map((message) => (
               <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[80%] p-3 rounded-lg ${
@@ -170,7 +170,7 @@ export default function ChatInterface() {
                   })}
                 </div>
               </div>
-            ))} */}
+            ))}
             {isLoading && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] p-3 rounded-lg bg-white text-[#8F8181] rounded-tl-none shadow-sm">
@@ -244,7 +244,7 @@ export default function ChatInterface() {
                 />
 
                 {/* Send button - only shows when there's input or the AI is responding */}
-                { isLoading ? (
+                { input.trim() || isLoading ? (
                   <button
                     type="submit"
                     disabled={
