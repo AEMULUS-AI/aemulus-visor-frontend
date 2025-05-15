@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
-import { useChat } from "@ai-sdk/react";
+import { Message, useChat } from "@ai-sdk/react";
 import {
   Send,
   Upload,
@@ -25,6 +25,10 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { UploadButton } from "@/utils/uploadthing";
+import { UploadDropzone } from "@uploadthing/react";
+import { uploadFiles } from "./lib/upload";
+import { Attachment } from "@ai-sdk/ui-utils";
 
 type ChatSession = {
   id: string;
@@ -64,16 +68,25 @@ export default function ChatInterface() {
   const [isContextExpanded, setIsContextExpanded] = useState(false);
   const contextFileInputRef = useRef<HTMLInputElement>(null);
 
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files);
-      setFiles((prev) => [...prev, ...newFiles]);
-    }
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const chosen = Array.from(e.target.files);
+
+    const uploaded = await uploadFiles("imageUploader", { files: chosen });
+    const newAttachments = uploaded.map((f) => ({
+      name: f.key,
+      contentType: f.type,
+      url: f.ufsUrl,
+    }));
+    setAttachments((prev) => [...prev, ...newAttachments]);
+    setFiles((prev) => [...prev, ...chosen]);
   };
 
   const handleFileUploadClick = () => {
@@ -121,18 +134,14 @@ export default function ChatInterface() {
     return "📁";
   };
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
+    // e.preventDefault();
     e.preventDefault();
-
-    // Here you would typically handle the files, perhaps uploading them
-    // to your server or processing them for the RAG system
-    console.log("Files to process:", files);
-
-    // Clear files after submission
     setFiles([]);
 
-    // Submit the text input
-    handleSubmit(e);
+    handleSubmit(e, { experimental_attachments: attachments });
+    console.log("Attachments:", attachments);
+    setAttachments([]); 
   };
 
   const startNewChat = () => {
@@ -288,6 +297,18 @@ export default function ChatInterface() {
                       : "bg-white text-[#8F8181] rounded-tl-none"
                   } shadow-sm`}
                 >
+                  <div>
+                    {message.experimental_attachments?.map(
+                      (attachment, index) => (
+                        <img
+                          key={`${message.id}-${index}`}
+                          src={attachment.url}
+                          alt={attachment.name}
+                          className="max-w-[80%] rounded-md mb-2"
+                        />
+                      )
+                    )}
+                  </div>
                   {message.parts.map((part, i) => {
                     if (part.type === "text") {
                       return (
@@ -332,6 +353,17 @@ export default function ChatInterface() {
                     className="flex items-center bg-[#F9F6EE] px-2 py-1 rounded text-sm"
                   >
                     <span className="truncate max-w-[150px]">{file.name}</span>
+                    {/* for image preview  */}
+                    {/* <img
+                      key={index}
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="max-w-[30%] rounded-md shadow-sm"
+                      onLoad={() =>
+                        URL.revokeObjectURL(URL.createObjectURL(file))
+                      }
+                    /> */}
+
                     <button
                       onClick={() => removeFile(index)}
                       className="ml-2 text-[#8F8181] hover:text-red-500"
@@ -346,7 +378,11 @@ export default function ChatInterface() {
 
           {/* Input Area - Redesigned to match the screenshot */}
           <div className="w-full px-4 py-6 border-[#8F8181]/20">
-            <form onSubmit={onSubmit} className="max-w-4xl mx-auto">
+            <form
+              onSubmit={handleSend}
+              encType="multipart/form-data"
+              className="max-w-4xl mx-auto"
+            >
               <div className="relative flex items-center w-full bg-white rounded-full border border-[#8F8181]/20 shadow-sm">
                 {/* Upload button */}
                 <button
@@ -362,7 +398,22 @@ export default function ChatInterface() {
                   onChange={handleFileChange}
                   className="hidden"
                   multiple
+                  accept="image/*" // ← only allow images
                 />
+
+                {/* <UploadButton
+                  endpoint="imageUploader"
+                  // blank out both the “label” and the “allowed-content” regions
+                  onClientUploadComplete={(res) => {
+                    console.log("uploaded", res);
+                  }}
+                  onUploadError={(err) => {
+                    console.error(err);
+                  }}
+                  className="mt-4 ut-button:bg-red-500 ut-button:ut-readying:bg-red-500/50"
+                /> */}
+                {/* </div> */}
+                {/* </button> */}
 
                 {/* Text input */}
                 <input
